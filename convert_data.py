@@ -16,4 +16,4 @@ print("Writing to posts.json...")
 with open(json_file_path, mode='w', encoding='utf-8') as f:
     json.dump(posts, f, indent=2)
 
-print(f"✅ Success! Converted {len(posts)} rows into posts.json")
+print(f"Success! Converted {len(posts)} rows into posts.json")
