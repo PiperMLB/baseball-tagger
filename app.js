@@ -5,7 +5,7 @@
   3. Gets data from external files (`rosters.json`, `posts.json`) and syncs already tagged posts directly from Google Sheets.
   4. Renders responsive social media embeds (TikTok, Instagram, Facebook, X/Twitter).
   5. Handles user interactions (submitting tags, skipping posts, filtering queue).
- */
+*/
 
 // ============================================================================
 // 1. GLOBAL CONFIGURATION & STATE VARIABLES
@@ -27,31 +27,26 @@ let playerTomSelect = null;
 // The Google Apps Script Web App Endpoint URL that writes tags into Google Sheets
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbypxBeKJHQgPgQHj0PAXGkPG6gTfLlNccibh8f_y5qfi2eCrX1bXxmeCmoZnzaUR1AEZw/exec";
 // A Set storing unique IDs of posts that have already been tagged
-// Using a Set allows instant O(1) lookups when filtering out completed posts
 let TAGGED_POST_IDS = new Set();
 
 
 // ============================================================================
 // 2. DOM CONTENT LOADED - MAIN INITIALIZATION
-// Runs as soon as the HTML document finishes loading completely
 document.addEventListener('DOMContentLoaded', function() {
   console.log("DOM loaded. Initializing app...");
 
   // A. initialize tagger name / modal 
-  // Checks if a tagger name exists in localStorage; if not, prompts the user modal
   initTaggerName();
 
-
   // B. initialize TomSelect Dropdowns 
-  // Convert standard HTML select elements into searchable, styled dropdowns
   const clubElem = document.getElementById('club-dropdown');
   if (clubElem) {
     clubTomSelect = new TomSelect('#club-dropdown', {
-      create: false,                           // Prevents users from typing custom non existent clubs
-      openOnFocus: true,                        // Automatically opens options when clicked
+      create: false,
+      openOnFocus: true,
       placeholder: "Search or select MLB club...",
-      sortField: { field: "text", order: "asc" }, // Alphabetize options
-      maxOptions: 50                            // Limit rendering to 50 options for speed
+      sortField: { field: "text", order: "asc" },
+      maxOptions: 50
     });
   } else {
     console.error("Missing #club-dropdown element!");
@@ -66,46 +61,37 @@ document.addEventListener('DOMContentLoaded', function() {
       sortField: { field: "text", order: "asc" },
       maxOptions: 200
     });
-    // Start disabled until a club is chosen by the user
-    playerTomSelect.disable();
-  } else {
-    console.error("Missing #player-dropdown element!");
   }
 
- 
   // C. load rosters JSON 
-  // Fetches team roster data, parses player strings into structured objects, and populates Club dropdown
   fetch('rosters.json')
     .then(res => res.json())
     .then(data => {
       if (clubTomSelect) clubTomSelect.clearOptions();
       
       data.forEach(row => {
-        // Handles key variations in JSON structure if column headers differ slightly
         const clubName = row.home_team_full_name || row.home_Team_full_name;
         
         if (clubName) {
-          // Normalizes player list into an array whether it comes in as array or CSV string
           let rawPlayers = Array.isArray(row.player_list) ? row.player_list : (row.player_list || '').split(',');
           
           const teamPlayers = rawPlayers.map(pString => {
-            // 1. Slices at " - ID:" to keep display string, e.g. "Aaron Civale (#38)"
             const displayName = pString.split('-')[0].trim();
-            
-            // 2. Extracts numeric MLB ID (e.g. 650644) for player headshots
             const idMatch = pString.match(/ID:\s*(\d+)/i);
-            
+
             return { 
               name: displayName, 
-              id: idMatch ? idMatch[1] : null 
+              id: idMatch ? idMatch[1] : null  // Sets id to null if non-numeric
             };
           });
 
-          // Save parsed team data to global memory object
+          // Save parsed team data into ROSTER_DATABASE
           ROSTER_DATABASE[clubName] = teamPlayers;
           
-          // Add team to the Club dropdown list
-          if (clubTomSelect) clubTomSelect.addOption({ value: clubName, text: clubName });
+          // Add team option to Club dropdown
+          if (clubTomSelect) {
+            clubTomSelect.addOption({ value: clubName, text: clubName });
+          }
         }
       });
 
@@ -114,9 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(err => console.error("Error loading rosters.json:", err));
 
-
-  // D. load posts JSON & Synch google sheet tags 
-  // Loads all social posts to be tagged
+  // D. load posts JSON & Sync google sheet tags 
   fetch('posts.json')
     .then(res => res.json())
     .then(data => {
@@ -126,17 +110,13 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(err => console.error("Error loading posts.json:", err));
 
-  // Queries Google Apps Script web app to check which post IDs have already been submitted
   if (GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.startsWith('http')) {
     fetch(GOOGLE_SHEET_URL)
       .then(res => res.json())
       .then(resData => {
         if (resData.status === "success" && Array.isArray(resData.taggedPostIds)) {
-          // Store already tagged IDs in the set so they can be hidden automatically
           resData.taggedPostIds.forEach(id => TAGGED_POST_IDS.add(String(id)));
           console.log("Synced " + TAGGED_POST_IDS.size + " existing tags from Google Sheets.");
-          
-          // Re apply filters to exclude posts that were just fetched as "tagged"
           applyFiltersAndRender();
         }
       })
@@ -144,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // E. Event Listeners: Dropdowns & Filter Controls
-  // When a Club is selected -> filter and populate player options
+  // When a Club is selected -> populate corresponding player options
   if (clubTomSelect) {
     clubTomSelect.on('change', function(selectedClub) {
       if (!playerTomSelect) return;
@@ -154,7 +134,6 @@ document.addEventListener('DOMContentLoaded', function() {
       hidePlayerHeadshot();
 
       if (selectedClub && ROSTER_DATABASE[selectedClub]) {
-        // Populate players corresponding to selected club
         ROSTER_DATABASE[selectedClub].forEach(p => {
           playerTomSelect.addOption({ value: p.name, text: p.name, playerId: p.id });
         });
@@ -166,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // When a Player is selected -> fetch and render their official MLB headshot
+  // When a Player is selected -> render official MLB headshot
   if (playerTomSelect) {
     playerTomSelect.on('change', function(selectedPlayerName) {
       if (!selectedPlayerName) {
@@ -175,9 +154,8 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       const selectedOption = playerTomSelect.options[selectedPlayerName];
-      if (selectedOption && selectedOption.playerId) {
-        // Construct static image URL using official MLB CDN
-        const headshotUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/${selectedOption.playerId}/headshot/67/current`;
+      if (selectedOption && selectedOption.playerId && selectedOption.playerId !== 'null') {
+        const headshotUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:silo:current.png/v1/people/${selectedOption.playerId}/headshot/67/current`;
         const imgElem = document.getElementById('player-headshot-img');
         const containerElem = document.getElementById('player-headshot-container');
         
@@ -191,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Attach change event listeners to top filter bar inputs
+  // Filter Bar listeners
   const filterPlatform = document.getElementById('filter-platform');
   const filterPostType = document.getElementById('filter-post-type');
   const filterStatus = document.getElementById('filter-status');
@@ -205,15 +183,13 @@ document.addEventListener('DOMContentLoaded', function() {
   if (filterStartDate) filterStartDate.addEventListener('change', applyFiltersAndRender);
   if (filterEndDate) filterEndDate.addEventListener('change', applyFiltersAndRender);
   if (filterSort) filterSort.addEventListener('change', applyFiltersAndRender);
-  // Initialize Submit and Skip button handlers
+
   setupFormHandlers();
 });
 
 
 // ============================================================================
 // 3. TAGGER NAME MODAL LOGIC
-// Handles user identity modal: prompts taggers for their name on first load,
-// saves it locally, and allows updating it via the UI header.
 function initTaggerName() {
   const modal = document.getElementById('name-modal');
   const taggerInput = document.getElementById('tagger-name-input');
@@ -221,7 +197,6 @@ function initTaggerName() {
   const nameDisplay = document.getElementById('tagger-name-display');
   const changeNameBtn = document.getElementById('change-name-btn');
 
-  // Helper to show/hide modal based on state
   function updateTaggerUI() {
     if (taggerName) {
       if (nameDisplay) nameDisplay.textContent = taggerName;
@@ -234,11 +209,9 @@ function initTaggerName() {
 
   updateTaggerUI();
 
-  // Save tagger name from modal
   if (saveBtn) {
     saveBtn.addEventListener('click', function(e) {
       e.preventDefault();
-      console.log("Start Tagging button clicked!");
       
       const inputVal = taggerInput ? taggerInput.value.trim() : '';
       if (!inputVal) {
@@ -248,16 +221,12 @@ function initTaggerName() {
 
       taggerName = inputVal;
       localStorage.setItem('taggerName', taggerName);
-      console.log("Tagger name saved:", taggerName);
 
       updateTaggerUI();
       applyFiltersAndRender();
     });
-  } else {
-    console.error("Missing #save-name-btn in HTML!");
   }
 
-  // Allow tagger to change their stored name
   if (changeNameBtn) {
     changeNameBtn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -271,9 +240,7 @@ function initTaggerName() {
 
 
 // ============================================================================
-// 4. FILTERING LOGI
-// Evaluates filter values selected in the top bar (platform, post type, status, dates)
-// and builds the active `FILTERED_POSTS` working array.
+// 4. FILTERING LOGIC
 function applyFiltersAndRender() {
   const selectedPlatform = document.getElementById('filter-platform')?.value || 'all';
   const selectedPostType = document.getElementById('filter-post-type')?.value || 'all';
@@ -301,13 +268,10 @@ function applyFiltersAndRender() {
 
   // 2. SORT POSTS
   if (selectedSort === 'asc') {
-    // Oldest to Newest
     FILTERED_POSTS.sort((a, b) => new Date(a.post_date_pt) - new Date(b.post_date_pt));
   } else if (selectedSort === 'desc') {
-    // Newest to Oldest
     FILTERED_POSTS.sort((a, b) => new Date(b.post_date_pt) - new Date(a.post_date_pt));
   } else if (selectedSort === 'random') {
-    // Fisher-Yates Random Shuffle
     for (let i = FILTERED_POSTS.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [FILTERED_POSTS[i], FILTERED_POSTS[j]] = [FILTERED_POSTS[j], FILTERED_POSTS[i]];
@@ -325,16 +289,12 @@ function applyFiltersAndRender() {
 
 // ============================================================================
 // 5. RENDER CURRENT POST IN UI
-// Renders the active post's media (TikTok, IG, FB, Twitter/X) and metadata
-// into the DOM based on `currentPostIndex`.
- 
 function renderCurrentPost() {
   const embedContainer = document.getElementById('media-embed-container');
   const captionElem = document.getElementById('post-caption-text');
   const postIdElem = document.getElementById('post-id-display');
   const counterElem = document.querySelector('.counter-text');
 
-  // Handle case where filters match 0 posts
   if (FILTERED_POSTS.length === 0) {
     if (embedContainer) {
       embedContainer.innerHTML = "<div style='padding: 40px; text-align: center; color: #666;'><h3>No posts match your filters</h3><p>Try broadening your platform or date filters above.</p></div>";
@@ -347,7 +307,6 @@ function renderCurrentPost() {
 
   const currentPost = FILTERED_POSTS[currentPostIndex];
 
-  // Update post metadata text
   if (postIdElem) postIdElem.textContent = `#${currentPost.post_id}`;
   if (captionElem) captionElem.textContent = currentPost.post_content || "No caption available.";
   if (counterElem) {
@@ -356,9 +315,7 @@ function renderCurrentPost() {
 
   const channel = currentPost.channel ? currentPost.channel.toLowerCase() : '';
 
-  // Render platform-specific embeds
   if (channel === 'tiktok') {
-    // Direct TikTok video player iframe embed
     embedContainer.innerHTML = `
       <iframe 
         src="https://www.tiktok.com/player/v1/${currentPost.post_id}" 
@@ -388,7 +345,6 @@ function renderCurrentPost() {
     if (window.twttr && window.twttr.widgets) window.twttr.widgets.load(embedContainer);
 
   } else {
-    // Generic fallback button if platform widget isn't directly supported
     embedContainer.innerHTML = `
       <div style="padding: 30px; text-align: center;">
         <p><strong>Platform:</strong> ${currentPost.channel} (${currentPost.post_type})</p>
@@ -403,7 +359,6 @@ function renderCurrentPost() {
 
 // ============================================================================
 // 6. FORM HANDLERS (SUBMIT & SKIP)
-// Attaches click handlers to "Save Tag" and "Skip" buttons.
 function setupFormHandlers() {
   const submitBtn = document.getElementById('submit-btn');
   if (submitBtn) {
@@ -413,7 +368,6 @@ function setupFormHandlers() {
       const selectedObjective = document.querySelector('input[name="objective"]:checked');
       const currentPost = FILTERED_POSTS[currentPostIndex];
 
-      // Assemble tag payload object
       const tagData = {
         taggedAt: new Date().toLocaleString(),
         taggerName: taggerName,
@@ -430,34 +384,28 @@ function setupFormHandlers() {
         postContent: currentPost.post_content || ""
       };
 
-      // Disable button while request in flight to prevent double-submissions
       submitBtn.disabled = true;
       submitBtn.textContent = "Saving to Google Sheet...";
 
-      // Optimistically add post to locally tagged Set
       TAGGED_POST_IDS.add(String(currentPost.post_id));
 
-      // POST payload to Google Apps Script Web App
       fetch(GOOGLE_SHEET_URL, {
         method: 'POST',
-        mode: 'no-cors', // Bypasses CORS restrictions on Google Apps Script
+        mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(tagData)
       })
       .then(() => console.log("Tag saved to Google Sheet:", tagData))
       .catch(err => console.warn("Background fetch warning:", err))
       .finally(() => {
-        // Reset UI controls for the next post
         submitBtn.disabled = false;
         submitBtn.textContent = "Save Tag & Next ➔";
         resetForm();
 
         const selectedStatus = document.getElementById('filter-status')?.value;
         if (selectedStatus === 'untagged') {
-          // Re-apply filters so the post we just tagged disappears automatically
           applyFiltersAndRender();
         } else {
-          // Advance queue pointer manually
           currentPostIndex++;
           if (currentPostIndex >= FILTERED_POSTS.length) currentPostIndex = 0;
           renderCurrentPost();
@@ -466,7 +414,6 @@ function setupFormHandlers() {
     });
   }
 
-  // Handle Skip button click
   const skipBtn = document.getElementById('skip-button');
   if (skipBtn) {
     skipBtn.addEventListener('click', function(e) {
@@ -478,7 +425,6 @@ function setupFormHandlers() {
         return;
       }
 
-      // Advance index to next post without logging a tag
       currentPostIndex++;
       if (currentPostIndex >= FILTERED_POSTS.length) currentPostIndex = 0;
 
@@ -491,8 +437,6 @@ function setupFormHandlers() {
 
 // ============================================================================
 // 7. HELPER FUNCTIONS
-// Clears form fields (dropdowns, event input, radio buttons, and headshot).
-
 function resetForm() {
   if (clubTomSelect) clubTomSelect.clear();
   if (playerTomSelect) {
@@ -510,8 +454,6 @@ function resetForm() {
   if (checkedRadio) checkedRadio.checked = false;
 }
 
-// Hides player headshot image container and clears src attribute.
- 
 function hidePlayerHeadshot() {
   const containerElem = document.getElementById('player-headshot-container');
   const imgElem = document.getElementById('player-headshot-img');
