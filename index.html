@@ -1,21 +1,24 @@
 <!DOCTYPE html> 
 <html lang="en">
 <head>
+  <!-- Basic web page setup: character set encoding and page title displayed in browser tab -->
   <meta charset="UTF-8">
   <title>Baseball Tagging App</title>
   
+  <!-- Custom CSS file containing structural layouts, colors, and button styling -->
   <link rel="stylesheet" href="styles.css">
   
-  <!-- TomSelect CSS: Searchable dropdown library -->
+  <!-- TomSelect CSS library: provides styling for searchable dropdown select components -->
   <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
 </head>
 <body>
  
   <!-- ==================== TOP FILTER BAR ==================== -->
+  <!-- Header bar containing drop-down filters and date inputs to filter post queues -->
   <div class="filter-bar">
     <h3>⚾ Baseball Tagger</h3>
 
-    <!-- 1. Platform Filter -->
+    <!-- 1. Platform Filter: filters posts by platform (TikTok, IG, Twitter/X, FB) -->
     <label>Platform:</label>
     <select id="filter-platform">
       <option value="all">All Platforms</option>
@@ -25,7 +28,7 @@
       <option value="facebook">Facebook</option>
     </select>
 
-    <!-- 2. Post Type Filter -->
+    <!-- 2. Post Type Filter: filters posts by format type (Video, Image, Reel, etc.) -->
     <label>Post Type:</label>
     <select id="filter-post-type">
       <option value="all">All Post Types</option>
@@ -40,7 +43,7 @@
       <option value="video">Video</option>
     </select>
 
-    <!-- 3. Tagging Status Filter -->
+    <!-- 3. Tagging Status Filter: toggles between completed posts and pending posts -->
     <label>Status:</label>
     <select id="filter-status">
       <option value="untagged">Untagged Only</option>
@@ -48,7 +51,7 @@
       <option value="all">All Posts</option>
     </select>
 
-    <!-- 4. Date Range Filter (Start & End Date) -->
+    <!-- 4. Date Range Filter: allows setting a start and end date boundary -->
     <label>From:</label>
     <input type="date" id="filter-start-date" value="2026-07-01">
 
@@ -56,22 +59,34 @@
     <input type="date" id="filter-end-date" value="2026-07-28">
   </div>
 
+  <!-- 5. Sort Order Filter: controls post order in queue (Oldest, Newest, or Random) -->
+  <div class="filter-group">
+    <label for="filter-sort">Sort By:</label>
+    <select id="filter-sort" class="filter-control">
+      <option value="asc">Oldest First (Ascending)</option>
+      <option value="desc">Newest First (Descending)</option>
+      <option value="random">Random Order</option>
+    </select>
+  </div>
 
-  <!-- ==================== MAIN WORKSPACE ==================== -->
+
+  <!-- MAIN WORK AREA -->
+  <!-- Split layout containing post media preview on the left and input forms on the right -->
   <div class="main-container">
 
     <!-- LEFT SIDE: Media Embed & Caption -->
     <div class="left-box">
+      <!-- Displays active post metadata ID -->
       <div class="post-header">
         <p><strong>Post ID:</strong> <span id="post-id-display">Loading...</span></p>
       </div>
       
-      <!-- Media Embed Container -->
+      <!-- Media Embed Container: dynamic target area where app.js injects video/photo embeds -->
       <div id="media-embed-container" class="embed-box">
         <!-- Injected dynamically by app.js -->
       </div>
 
-      <!-- Post Caption Display Box -->
+      <!-- Post Caption Display Box: shows text caption of the active social post -->
       <div class="caption-container">
         <h4>Post Caption</h4>
         <p id="post-caption-text" class="caption-text">
@@ -84,7 +99,7 @@
 
     <!-- RIGHT SIDE: Multi-Category Tagging Panel -->
     <div class="right-box">
-      <!-- TAGGER NAME BANNER -->
+      <!-- TAGGER NAME BANNER: displays who is currently logged in with option to edit name -->
       <div class="tagger-info-bar">
         <span><strong>Tagger:</strong> <span id="tagger-name-display">Not Set</span></span>
         <button id="change-name-btn" class="btn-text">Change</button>
@@ -95,47 +110,47 @@
 
       <form id="tagging-form">
         
-        <!-- 1. CLUB DROPDOWN -->
-<div class="form-group">
-  <label for="club-dropdown"><strong>Club:</strong></label>
-  <select id="club-dropdown" placeholder="Search or select MLB club...">
-    <option value=""></option>
-  </select>
-</div>
+        <!-- 1. CLUB DROPDOWN: populated dynamically from rosters.json via TomSelect -->
+        <div class="form-group">
+          <label for="club-dropdown"><strong>Club:</strong></label>
+          <select id="club-dropdown" placeholder="Search or select MLB club...">
+            <option value=""></option>
+          </select>
+        </div>
 
 
-<!-- Player Headshot Container -->
-<div id="player-headshot-container" style="display: none; text-align: center; margin-top: 15px; margin-bottom: 15px;">
-  <img 
-    id="player-headshot-img" 
-    src="" 
-    alt="Player Headshot" 
-    style="
-      width: 320px; 
-      height: 520px; 
-      border-radius: 12px; 
-      object-fit: cover; 
-      border: 3px solid #041E42; 
-      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-    " 
-  />
-</div>
+        <!-- Player Headshot: displays player headshots from MLB API -->
+        <div id="player-headshot-container" style="display: none; text-align: center; margin-top: 15px; margin-bottom: 15px;">
+          <img 
+            id="player-headshot-img" 
+            src="" 
+            alt="Player Headshot" 
+            style="
+              width: 320px; 
+              height: 520px; 
+              border-radius: 12px; 
+              object-fit: cover; 
+              border: 3px solid #041E42; 
+              box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            " 
+          />
+        </div>
 
-<!-- 2. PLAYER DROPDOWN -->
-<div class="form-group">
-  <label for="player-dropdown"><strong>Player(s):</strong></label>
-  <select id="player-dropdown" placeholder="Select a Club first...">
-    <option value=""></option>
-  </select>
-</div>
+        <!-- 2. PLAYER DROPDOWN: based on selected MLB club -->
+        <div class="form-group">
+          <label for="player-dropdown"><strong>Player(s):</strong></label>
+          <select id="player-dropdown" placeholder="Select a Club first...">
+            <option value=""></option>
+          </select>
+        </div>
 
-        <!-- 3. EVENT (Written Response) -->
+        <!-- 3. EVENT (Written Response): optional free text context input field -->
         <div class="form-group">
           <label for="event-input"><strong>Event:</strong></label>
           <input type="text" id="event-input" class="text-input" placeholder="e.g. Spring Training, Walk-off HR">
         </div>
 
-        <!-- 4. OBJECTIVE (2 Options) -->
+        <!-- 4. OBJECTIVE (2 Options): radio selection for post campaign goal -->
         <div class="form-group">
           <label><strong>Objective:</strong></label>
           <div class="radio-group">
@@ -152,7 +167,7 @@
 
         <hr>
 
-        <!-- SUBMIT & SKIP BUTTONS -->
+        <!-- SUBMIT & SKIP BUTTONS: triggers logging tag to Google Sheet or advancing queue -->
         <div class="button-group">
           <button type="button" id="submit-btn" class="btn btn-primary">Save Tag &amp; Next ➔</button>
           <button type="button" id="skip-button" class="btn btn-secondary">Skip Post</button>
@@ -160,12 +175,14 @@
 
       </form>
 
+      <!-- Queue progress counter text -->
       <p class="counter-text">Post 1 of 12 in Queue</p>
     </div>
 
   </div>
 
-  <!-- ==================== TAGGER NAME MODAL POPUP ==================== -->
+  <!-- THE USERS NAME -->
+  <!-- Pop-up overlay prompting user for identity before starting tagging session -->
   <div id="name-modal" class="modal-overlay">
     <div class="modal-content">
       <h3>Welcome to Baseball Tagger ⚾</h3>
@@ -176,15 +193,16 @@
   </div>
 
   <!-- ==================== EXTERNAL EMBED SCRIPTS ==================== -->
+  <!-- Native SDK scripts that allow social platforms to render embedded widgets in browser -->
   <script async src="https://www.tiktok.com/embed.js"></script>
   <script async src="https://www.instagram.com/embed.js"></script>
-
-<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-  
+  <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
   <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v18.0"></script>
 
   <!-- ==================== APP SCRIPTS ==================== -->
+  <!-- TomSelect searchable dropdown library JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+  <!-- Main application script with cache-busting query parameter (?v=1.1) -->
   <script src="app.js?v=1.1"></script>
 
 </body>
