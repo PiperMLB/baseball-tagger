@@ -368,6 +368,7 @@ function setupFormHandlers() {
       const selectedObjective = document.querySelector('input[name="objective"]:checked');
       const currentPost = FILTERED_POSTS[currentPostIndex];
 
+            // Assemble tag payload object
       const tagData = {
         taggedAt: new Date().toLocaleString(),
         taggerName: taggerName,
@@ -379,6 +380,7 @@ function setupFormHandlers() {
         club: clubTomSelect ? clubTomSelect.getValue() : null,
         player: playerTomSelect ? playerTomSelect.getValue() : null,
         event: document.getElementById('event-input')?.value.trim() || null,
+        freeform: document.getElementById('freeform-input')?.value.trim() || null, // <--- ADDED THIS LINE
         objective: selectedObjective ? selectedObjective.value : null,
         postUrl: currentPost.post_url || "",
         postContent: currentPost.post_content || ""
@@ -450,13 +452,10 @@ function resetForm() {
   const eventInput = document.getElementById('event-input');
   if (eventInput) eventInput.value = '';
 
+  // Clear Freeform field
+  const freeformInput = document.getElementById('freeform-input'); // <--- ADDED THIS
+  if (freeformInput) freeformInput.value = '';                     // <--- ADDED THIS
+
   const checkedRadio = document.querySelector('input[name="objective"]:checked');
   if (checkedRadio) checkedRadio.checked = false;
-}
-
-function hidePlayerHeadshot() {
-  const containerElem = document.getElementById('player-headshot-container');
-  const imgElem = document.getElementById('player-headshot-img');
-  if (containerElem) containerElem.style.display = 'none';
-  if (imgElem) imgElem.src = '';
 }
