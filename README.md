@@ -7,7 +7,14 @@ A simple web app built to help team members view social media posts, tag the MLB
 ## Live App Link
 
 Use the link below to open and use the live application:
-* **Live Web App:** `(https://pipermlb.github.io/baseball-tagger/)`
+* **Live Web App:** `https://pipermlb.github.io/baseball-tagger/`
+
+---
+
+## Tagging Spreadsheet
+
+Use the link below to review the Tagging Data:
+* **Live Spreadsheet:** `https://docs.google.com/spreadsheets/d/1KBwIRQJfqaLDreLcYEgOpEICcuPwn2hYq-FELNkkg7I/edit?usp=sharing`
 
 ---
 
