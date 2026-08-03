@@ -7,7 +7,7 @@ A simple web app built to help team members view social media posts, tag the MLB
 ## Live App Link
 
 To access the Live Web App ink follow these steps: 
-1. Go to Settings
+1. Go to the baseball-tagger repository Settings
 2. On the Left side, click on Pages.
 3. Click the link that follows: "Your site is live at..."
 
