@@ -66,7 +66,7 @@ Lists each MLB team along with their players, jersey numbers, and MLB picture ID
 ]
 ```
 ---
-## 🛠️ How to Make Changes to the Codebase
+## How to Make Changes to the Codebase
 
 If you need to update team rosters, fix styling, adjust logic, or add features, you can do so directly on GitHub or locally on your computer.
 
@@ -102,6 +102,8 @@ If you need to update team rosters, fix styling, adjust logic, or add features, 
    * Click **Commit**.
 5. **Sync to GitHub:** Click **Sync Changes** to push your work live to GitHub Pages.
 
+---
+
 #### Using GitHub Desktop:
 1. Open **GitHub Desktop** and select the `baseball-tagger` repository.
 2. Click **Fetch origin** at the top to ensure you have the newest code.
@@ -109,3 +111,25 @@ If you need to update team rosters, fix styling, adjust logic, or add features, 
 4. Return to GitHub Desktop — your changed files will appear in the left sidebar.
 5. Type a summary in the **Summary** box at the bottom left, then click **Commit to main**.
 6. Click **Push origin** at the top bar to push the updates live.
+
+---
+
+## How to Update Posts from BigQuery
+
+When you pull a fresh table or new list of posts from BigQuery, follow these steps to update the queue in your app:
+
+### Step 1: Export from BigQuery
+1. Run your SQL query in the **BigQuery Console**.
+2. Click **SAVE RESULTS** ➔ **Google Drive (CSV)** or download as a CSV file to your computer.
+
+### Step 2: Convert CSV to `posts.json`
+1. Move the downloaded CSV file into your `baseball-tagger` folder in VS Code.
+2. Open your terminal in VS Code (`Ctrl + ~`) and run your conversion script (below). This automatically transforms your CSV rows into a clean posts.json file.
+   ```bash
+   python convert_data.py
+  
+### Step 3: Publish Updates to the Live Web App
+1. Open the Source Control tab in VS Code (Ctrl + Shift + G).
+2. Type a message in the input box (e.g., "Updated post queue").
+3. Click Commit, then click Sync Changes. GitHub Pages will automatically add your new posts to the live site within 1–2 minutes
+
