@@ -6,8 +6,10 @@ A simple web app built to help team members view social media posts, tag the MLB
 
 ## Live App Link
 
-Use the link below to open and use the live application:
-* **Live Web App:** `https://pipermlb.github.io/baseball-tagger/`
+To access the Live Web App ink follow these steps: 
+1. Go to Settings
+2. On the Left side, click on Pages.
+3. Click the link that follows: "Your site is live at..."
 
 ---
 
