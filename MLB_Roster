@@ -1,0 +1,87 @@
+WITH rosters AS (
+  SELECT
+    game_date,
+    home_team_id,
+    away_team_id,
+    game_pk,
+    roster_type,
+    player_id
+  FROM `mlb-bdataml-prod-da8f.feature_pipeline.gameQuality_upcomingGameRosters_game_daily`
+  CROSS JOIN UNNEST([
+      STRUCT('home_batters' AS roster_type, home_batters AS player_array),
+      STRUCT('home_pitchers' AS roster_type, home_pitchers AS player_array),
+      STRUCT('away_batters' AS roster_type, away_batters AS player_array),
+      STRUCT('away_pitchers' AS roster_type, away_pitchers AS player_array)
+    ]) AS unpivoted
+  CROSS JOIN UNNEST(unpivoted.player_array) AS player_id
+  WHERE game_date BETWEEN '2024-03-20' AND CURRENT_DATE()
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY game_pk, roster_type, player_id ORDER BY game_date DESC) = 1
+),
+
+people AS (
+  SELECT
+    id,
+    primaryNumber,
+    nameFirstLast
+  FROM `mlb-dataeng-prod.stats_api.stats_people`
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY id) = 1
+),
+
+resolved AS (
+  SELECT
+    r.game_date,
+    r.home_team_id,
+    r.away_team_id,
+    r.game_pk,
+    r.roster_type,
+    r.player_id,
+    CASE
+      WHEN p.nameFirstLast IS NOT NULL AND p.primaryNumber IS NOT NULL THEN CONCAT(p.nameFirstLast, ' (', p.primaryNumber, ')')
+      WHEN p.nameFirstLast IS NOT NULL THEN p.nameFirstLast
+      ELSE CAST(r.player_id AS STRING)
+    END AS player_name
+  FROM rosters r
+  LEFT JOIN people p ON r.player_id = p.id
+),
+
+team_names AS (
+  SELECT
+    tr.team.id AS team_id,
+    tr.team.abbreviation AS team_abbreviation,
+    tr.team.name AS team_full_name,
+    tr.team.teamName AS team_name
+  FROM `mlb-dataeng-prod.stats_api.stats_standing`, UNNEST(teamRecords) AS tr
+  WHERE league.season BETWEEN 2024 AND 2026
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY tr.team.id ORDER BY league.season DESC) = 1
+),
+
+team_players AS (
+  -- Extract players when the team is the home team
+  SELECT
+    home_team_id AS team_id,
+    player_name
+  FROM resolved
+  WHERE roster_type IN ('home_batters', 'home_pitchers')
+
+  UNION DISTINCT
+
+  -- Extract players when the team is the away team
+  SELECT
+    away_team_id AS team_id,
+    player_name
+  FROM resolved
+  WHERE roster_type IN ('away_batters', 'away_pitchers')
+)
+
+SELECT
+  tp.team_id AS home_team_id,
+  tn.team_full_name AS home_team_full_name,
+  COUNT(tp.player_name) AS total_players,
+  STRING_AGG(tp.player_name, ', ' ORDER BY tp.player_name) AS player_list
+FROM team_players tp
+LEFT JOIN team_names tn ON tp.team_id = tn.team_id
+GROUP BY
+  tp.team_id,
+  tn.team_full_name
+ORDER BY
+  tn.team_full_name;
