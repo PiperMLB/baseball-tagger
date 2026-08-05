@@ -40,23 +40,22 @@ let taggingMode = localStorage.getItem('taggingMode') || 'source_of_truth';
 
 // Asks Google Sheets for the list of post IDs that are already tagged in the active mode
 async function fetchTaggedPostIds() {
-  // Build the web link with the current mode as a URL parameter
   const url = SHEET_URL_SOURCE_OF_TRUTH + `?mode=${taggingMode}`;
 
   try {
-    // Send a request to Google Sheets
     const response = await fetch(url);
-    // Convert the incoming response into a JavaScript object
     const data = await response.json();
 
-    // Check if the server returned a valid array of tagged post IDs
     if (data.status === 'success' && Array.isArray(data.taggedPostIds)) {
-      // Save the cleaned post IDs into our Set variable
-      TAGGED_POST_IDS = new Set(data.taggedPostIds.map(id => String(id).trim()));
+      // 📍 Normalize every ID to a trimmed string
+      TAGGED_POST_IDS = new Set(
+        data.taggedPostIds
+          .filter(id => id !== null && id !== undefined && id !== '')
+          .map(id => String(id).trim())
+      );
       console.log(`Loaded ${TAGGED_POST_IDS.size} tagged post IDs for mode [${taggingMode}]`);
     }
   } catch (err) {
-    // Log an error if the request fails
     console.error("Error fetching tagged post IDs from Google Sheets:", err);
   }
 }
@@ -311,23 +310,22 @@ async function applyFiltersAndRender() {
 
   // Filter ALL_POSTS array down to matching FILTERED_POSTS
   FILTERED_POSTS = ALL_POSTS.filter(post => {
-    // Filter by social platform (TikTok, Instagram, Facebook, X)
     if (selectedPlatform !== 'all' && post.channel.toLowerCase() !== selectedPlatform.toLowerCase()) return false;
-    // Filter by post content type (Reel, Video, Photo, etc.)
     if (selectedPostType !== 'all' && post.post_type.toLowerCase() !== selectedPostType.toLowerCase()) return false;
 
-    // Filter by Tagged vs Untagged status matching Google Sheets records
-    const isTagged = TAGGED_POST_IDS.has(String(post.post_id).trim());
+    //Convert current post's ID to a clean string before looking up in Set
+    const currentIdStr = String(post.post_id).trim();
+    const isTagged = TAGGED_POST_IDS.has(currentIdStr);
+
     if (selectedStatus === 'untagged' && isTagged) return false;
     if (selectedStatus === 'tagged' && !isTagged) return false;
 
-    // Filter by start and end publication date
     if (post.post_date_pt) {
       if (startDate && post.post_date_pt < startDate) return false;
       if (endDate && post.post_date_pt > endDate) return false;
     }
 
-    return true; // Keep post if all conditions pass
+    return true;
   });
 
   // Sort filtered posts (Oldest First, Newest First, or Random)
