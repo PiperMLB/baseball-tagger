@@ -1,0 +1,3 @@
+SELECT distinct page_account, post_id, post_date_pt, post_type, channel, post_url, post_content
+FROM `mlb-decur-prod-9444.social_media.social_post_metrics_combined`
+WHERE post_date_pt between '2023-01-01' and current_date and lower(page_account) like 'mlb'
