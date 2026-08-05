@@ -1,24 +1,24 @@
 <!DOCTYPE html> 
 <html lang="en">
 <head>
-  <!-- Basic web page setup: character set encoding and page title displayed in browser tab -->
+  <!-- Basic web page setup: character encoding and title displayed in the browser tab -->
   <meta charset="UTF-8">
   <title>Baseball Tagging App</title>
   
-  <!-- Custom CSS file containing structural layouts, colors, and button styling -->
+  <!-- Custom stylesheet containing site colors, layout structure, and button styles -->
   <link rel="stylesheet" href="styles.css">
   
-  <!-- TomSelect CSS library: provides styling for searchable dropdown select components -->
+  <!-- TomSelect CSS library: provides styling for searchable dropdown selects -->
   <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
 </head>
 <body>
  
   <!-- ==================== TOP FILTER BAR ==================== -->
-  <!-- Header bar containing drop-down filters and date inputs to filter post queues -->
+  <!-- Header navigation bar containing filters to control which posts appear in the queue -->
   <div class="filter-bar">
     <h3>⚾ Baseball Tagger</h3>
 
-    <!-- 1. Platform Filter: filters posts by platform (TikTok, IG, Twitter/X, FB) -->
+    <!-- 1. Platform Filter: dropdown to filter posts by social network (TikTok, IG, Twitter/X, FB) -->
     <label>Platform:</label>
     <select id="filter-platform">
       <option value="all">All Platforms</option>
@@ -28,7 +28,7 @@
       <option value="facebook">Facebook</option>
     </select>
 
-    <!-- 2. Post Type Filter: filters posts by format type (Video, Image, Reel, etc.) -->
+    <!-- 2. Post Type Filter: dropdown to filter posts by media format (Video, Image, Reel, etc.) -->
     <label>Post Type:</label>
     <select id="filter-post-type">
       <option value="all">All Post Types</option>
@@ -43,7 +43,7 @@
       <option value="video">Video</option>
     </select>
 
-    <!-- 3. Tagging Status Filter: toggles between completed posts and pending posts -->
+    <!-- 3. Tagging Status Filter: switches view between completed posts and pending posts -->
     <label>Status:</label>
     <select id="filter-status">
       <option value="untagged">Untagged Only</option>
@@ -51,7 +51,7 @@
       <option value="all">All Posts</option>
     </select>
 
-    <!-- 4. Date Range Filter: allows setting a start and end date boundary -->
+    <!-- 4. Date Range Filter: allows setting starting and ending publish date limits -->
     <label>From:</label>
     <input type="date" id="filter-start-date" value="2026-07-01">
 
@@ -59,7 +59,7 @@
     <input type="date" id="filter-end-date" value="2026-07-28">
   </div>
 
-  <!-- 5. Sort Order Filter: controls post order in queue (Oldest, Newest, or Random) -->
+  <!-- 5. Sort Order Filter: dropdown controlling post queue order (Oldest, Newest, or Random) -->
   <div class="filter-group">
     <label for="filter-sort">Sort By:</label>
     <select id="filter-sort" class="filter-control">
@@ -71,22 +71,22 @@
 
 
   <!-- MAIN WORK AREA -->
-  <!-- Split layout containing post media preview on the left and input forms on the right -->
+  <!-- Split-screen container: left side shows social post preview, right side shows tagging form -->
   <div class="main-container">
 
-    <!-- LEFT SIDE: Media Embed & Caption -->
+    <!-- LEFT SIDE: Media Embed & Text Captions -->
     <div class="left-box">
-      <!-- Displays active post metadata ID -->
+      <!-- Shows the ID number of the active post -->
       <div class="post-header">
         <p><strong>Post ID:</strong> <span id="post-id-display">Loading...</span></p>
       </div>
       
-      <!-- Media Embed Container: dynamic target area where app.js injects video/photo embeds -->
+      <!-- Media Embed Container: empty box where app.js dynamically injects video or photo players -->
       <div id="media-embed-container" class="embed-box">
         <!-- Injected dynamically by app.js -->
       </div>
 
-      <!-- Post Caption Display Box: shows text caption of the active social post -->  
+      <!-- Post Caption Box: displays the original text caption of the social post -->  
       <div class="caption-container">
         <h4>Post Caption</h4>
         <p id="post-caption-text" class="caption-text">
@@ -94,7 +94,7 @@
         </p>
       </div>
 
-      <!-- AI Generated Description (Styled Identically) -->
+      <!-- AI Generated Description Box: displays AI visual descriptions (shown only in AI Evaluation mode) -->
       <div id="ai-description-box" class="caption-container" style="display: none; margin-top: 15px;">
         <h4>AI Description</h4>
         <p id="ai-text-description-content" class="caption-text">
@@ -105,9 +105,9 @@
     </div>
 
 
-    <!-- RIGHT SIDE: Multi-Category Tagging Panel -->
+    <!-- RIGHT SIDE: Tagging Input Panel -->
     <div class="right-box">
-      <!-- TAGGER NAME BANNER: displays who is currently logged in with option to edit name -->
+      <!-- Tagger Info Bar: displays active user's name and tagging mode with an edit button -->
       <div class="tagger-info-bar">
         <span><strong>Tagger:</strong> <span id="tagger-name-display">Not Set</span></span>
         <button id="change-name-btn" class="btn-text">Change</button>
@@ -116,9 +116,10 @@
       <h3>Tag Post</h3>
       <p class="sub-text">Fill in any applicable tags below (all optional):</p>
 
+      <!-- Tagging Form: gathers tag input data to send to Google Sheets -->
       <form id="tagging-form">
         
-        <!-- 1. CLUB DROPDOWN: populated dynamically from rosters.json via TomSelect -->
+        <!-- 1. Club Selection: searchable dropdown populated with MLB team names -->
         <div class="form-group">
           <label for="club-dropdown"><strong>Club:</strong></label>
           <select id="club-dropdown" placeholder="Search or select MLB club...">
@@ -127,7 +128,7 @@
         </div>
 
 
-        <!-- Player Headshot: displays player headshots from MLB API -->
+        <!-- Player Headshot Display: shows official MLB player headshot photo when a player is selected -->
         <div id="player-headshot-container" style="display: none; text-align: center; margin-top: 15px; margin-bottom: 15px;">
           <img 
             id="player-headshot-img" 
@@ -144,7 +145,7 @@
           />
         </div>
 
-        <!-- 2. PLAYER DROPDOWN: based on selected MLB club -->
+        <!-- 2. Player Selection: searchable dropdown populated with player roster of selected club -->
         <div class="form-group">
           <label for="player-dropdown"><strong>Player(s):</strong></label>
           <select id="player-dropdown" placeholder="Select a Club first...">
@@ -152,13 +153,13 @@
           </select>
         </div>
 
-        <!-- 3. EVENT (Written Response): optional free text context input field -->
+        <!-- 3. Event Input: optional text field for specifying event context (e.g. Walk-off HR) -->
         <div class="form-group">
           <label for="event-input"><strong>Event:</strong></label>
           <input type="text" id="event-input" class="text-input" placeholder="e.g. Spring Training, Walk-off HR">
         </div>
 
-        <!-- 4. OBJECTIVE (2 Options): radio selection for post campaign goal -->
+        <!-- 4. Objective Selection: radio buttons for post campaign target goal -->
         <div class="form-group">
           <label><strong>Objective:</strong></label>
           <div class="radio-group">
@@ -171,7 +172,8 @@
               Target current baseball fans
             </label>
           </div>
-          <!-- Freeform / Custom Notes Field -->
+
+          <!-- 5. Freeform Notes Input: text field for custom tagger comments -->
           <div class="form-group" style="margin-bottom: 15px;">
             <label for="freeform-input" style="font-weight: bold; display: block; margin-bottom: 5px;">
               Freeform / Custom Notes:
@@ -184,18 +186,19 @@
               style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"
             >
           </div>
-          <!-- Score Graphic Checkbox -->
-        <div class="form-group" style="margin-bottom: 15px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold;">
-            <input type="checkbox" id="score-graphic-checkbox" style="width: 18px; height: 18px; cursor: pointer;">
-            Is a Score Graphic?
-          </label>
-        </div>
+
+          <!-- 6. Score Graphic Checkbox: toggle box indicating if post contains a game score visual -->
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold;">
+              <input type="checkbox" id="score-graphic-checkbox" style="width: 18px; height: 18px; cursor: pointer;">
+              Is a Score Graphic?
+            </label>
+          </div>
         </div>
 
         <hr>
 
-        <!-- SUBMIT & SKIP BUTTONS: triggers logging tag to Google Sheet or advancing queue -->
+        <!-- 7. Action Buttons: save form data to Google Sheets or skip to next post -->
         <div class="button-group">
           <button type="button" id="submit-btn" class="btn btn-primary">Save Tag &amp; Next ➔</button>
           <button type="button" id="skip-button" class="btn btn-secondary">Skip Post</button>
@@ -203,70 +206,70 @@
 
       </form>
 
-      <!-- Queue progress counter text -->
+      <!-- Queue Progress Indicator: shows current post number out of total posts -->
       <p class="counter-text">Post 1 of 12 in Queue</p>
     </div>
 
   </div>
 
-  <!-- Name / Mode Selection Modal -->
-<div id="name-modal" class="modal-overlay">
-  <div class="modal-content">
-    <h2>Welcome to Baseball Tagger</h2>
-    <p>Please enter your name and select your tagging purpose to begin:</p>
-    
-    <!-- 1. Tagger Name Input -->
-    <div class="form-group" style="margin-bottom: 15px;">
-      <label for="tagger-name-input" style="font-weight: bold; display: block; margin-bottom: 5px;">
-        Your Name:
-      </label>
-      <input 
-        type="text" 
-        id="tagger-name-input" 
-        placeholder="e.g. Alex Smith" 
-        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"
-      >
-    </div>
-
-    <!-- 2. Tagging Purpose Selection (New Mode Radio Buttons) -->
-    <div class="form-group" style="margin-top: 15px; margin-bottom: 20px;">
-      <label style="font-weight: bold; display: block; margin-bottom: 8px;">
-        Select Your Tagging Purpose:
-      </label>
+  <!-- Name & Mode Selection Modal Popup: prompts user for name and mode on first visit -->
+  <div id="name-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h2>Welcome to Baseball Tagger</h2>
+      <p>Please enter your name and select your tagging purpose to begin:</p>
       
-      <div style="margin-bottom: 8px;">
-        <input type="radio" id="mode-source" name="tagging-mode" value="source_of_truth" checked>
-        <label for="mode-source" style="font-weight: normal; cursor: pointer;">
-          <strong>1) Create Source of Truth Tag</strong> (Standard manual tagging)
+      <!-- 1. Tagger Name Text Field -->
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label for="tagger-name-input" style="font-weight: bold; display: block; margin-bottom: 5px;">
+          Your Name:
         </label>
+        <input 
+          type="text" 
+          id="tagger-name-input" 
+          placeholder="e.g. Alex Smith" 
+          style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"
+        >
       </div>
 
-      <div>
-        <input type="radio" id="mode-ai" name="tagging-mode" value="evaluate_ai">
-        <label for="mode-ai" style="font-weight: normal; cursor: pointer;">
-          <strong>2) Evaluate AI Tagging</strong> (Review & correct pre-tagged AI posts)
+      <!-- 2. Tagging Mode Selection: radio buttons to switch between manual tagging and AI evaluation -->
+      <div class="form-group" style="margin-top: 15px; margin-bottom: 20px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 8px;">
+          Select Your Tagging Purpose:
         </label>
+        
+        <div style="margin-bottom: 8px;">
+          <input type="radio" id="mode-source" name="tagging-mode" value="source_of_truth" checked>
+          <label for="mode-source" style="font-weight: normal; cursor: pointer;">
+            <strong>1) Create Source of Truth Tag</strong> (Standard manual tagging)
+          </label>
+        </div>
+
+        <div>
+          <input type="radio" id="mode-ai" name="tagging-mode" value="evaluate_ai">
+          <label for="mode-ai" style="font-weight: normal; cursor: pointer;">
+            <strong>2) Evaluate AI Tagging</strong> (Review & correct pre-tagged AI posts)
+          </label>
+        </div>
       </div>
+
+      <!-- 3. Modal Start Button: saves settings and opens app -->
+      <button id="save-name-btn" class="btn btn-primary" style="width: 100%;">
+        Start Tagging ➔
+      </button>
     </div>
-
-    <!-- 3. Save / Start Button -->
-    <button id="save-name-btn" class="btn btn-primary" style="width: 100%;">
-      Start Tagging ➔
-    </button>
   </div>
-</div>
 
   <!-- ==================== EXTERNAL EMBED SCRIPTS ==================== -->
-  <!-- Native SDK scripts that allow social platforms to render embedded widgets in browser -->
+  <!-- Official platform SDK scripts that allow embeds (TikTok, Instagram, Twitter, Facebook) to render -->
   <script async src="https://www.tiktok.com/embed.js"></script>
   <script async src="https://www.instagram.com/embed.js"></script>
   <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
   <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v18.0"></script>
 
   <!-- ==================== APP SCRIPTS ==================== -->
-  <!-- TomSelect searchable dropdown library JavaScript -->
+  <!-- TomSelect dropdown library script -->
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-  <!-- Main application script with cache-busting query parameter (?v=1.1) -->
+  <!-- Main app logic script with cache-busting version parameter (?v=1.1) -->
   <script src="app.js?v=1.1"></script>
 
 </body>
