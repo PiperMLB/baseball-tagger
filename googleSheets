@@ -1,0 +1,102 @@
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // Check if payload requested AI mode
+    var isAiMode = (data.taggingMode === 'evaluate_ai');
+    
+    var sheet = null;
+    var sheets = ss.getSheets();
+
+    // Look for a tab containing "AI" or "Eval" for AI mode, or "Truth" / "Source" for Truth mode
+    for (var s = 0; s < sheets.length; s++) {
+      var name = sheets[s].getName().trim().toLowerCase();
+      if (isAiMode && (name.includes('ai') || name.includes('eval'))) {
+        sheet = sheets[s];
+        break;
+      } else if (!isAiMode && (name.includes('truth') || name.includes('source'))) {
+        sheet = sheets[s];
+        break;
+      }
+    }
+
+    // Fallback if no matching tab name is found
+    if (!sheet) sheet = ss.getSheets()[0];
+
+    // Append 15 columns
+    sheet.appendRow([
+      data.taggedAt,        // A: Timestamp
+      data.taggerName,      // B: Tagger Name
+      data.postId,          // C: Post ID
+      data.pageAccount,     // D: Page Account
+      data.channel,         // E: Channel
+      data.postType,        // F: Post Type
+      data.postDate,        // G: Post Date
+      data.club,            // H: Club
+      data.player,          // I: Player
+      data.event,           // J: Event
+      data.objective,       // K: Objective
+      data.scoreGraphic,    // L: Score Graphic
+      data.freeform,        // M: Freeform
+      data.postUrl,         // N: Post URL
+      data.postContent      // O: Post Content
+    ]);
+
+    return ContentService.createTextOutput(JSON.stringify({"result": "success"}))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({"result": "error", "error": err.toString()}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  try {
+    var mode = e && e.parameter && e.parameter.mode ? e.parameter.mode : 'source_of_truth';
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    var isAiMode = (mode === 'evaluate_ai');
+    var sheet = null;
+    var sheets = ss.getSheets();
+
+    for (var s = 0; s < sheets.length; s++) {
+      var name = sheets[s].getName().trim().toLowerCase();
+      if (isAiMode && (name.includes('ai') || name.includes('eval'))) {
+        sheet = sheets[s];
+        break;
+      } else if (!isAiMode && (name.includes('truth') || name.includes('source'))) {
+        sheet = sheets[s];
+        break;
+      }
+    }
+
+    if (!sheet) sheet = ss.getSheets()[0];
+
+    var data = sheet.getDataRange().getValues();
+    var taggedPostIds = [];
+
+    // Column C (Index 2) is Post ID
+    var POST_ID_COLUMN_INDEX = 2;
+
+    for (var i = 1; i < data.length; i++) {
+      var rawId = data[i][POST_ID_COLUMN_INDEX];
+      if (rawId !== undefined && rawId !== null && rawId !== "") {
+        taggedPostIds.push(String(rawId).trim());
+      }
+    }
+
+    
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "success",
+      mode: mode,
+      sheetUsed: sheet.getName(),
+      taggedPostIds: taggedPostIds 
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
