@@ -1,69 +1,60 @@
-/* BASEBALL TAGGER - MAIN APPLICATION LOGIC (app.js)
-  What this file does:
-  1. Manages state for posts, rosters, filters, and user session (tagger name)
-  2. Initializes search dropdowns for MLB Clubs and Players
-  3. Gets data from external files (`rosters.json`, `posts.json`) and syncs already tagged posts directly from Google Sheets.
-  4. Renders responsive social media embeds (TikTok, Instagram, Facebook, X/Twitter).
-  5. Handles user interactions (submitting tags, skipping posts, filtering queue).
-*/
+/* BASEBALL TAGGER - MAIN APPLICATION LOGIC (app.js) */
 
 // ============================================================================
 // 1. GLOBAL CONFIGURATION & STATE VARIABLES
+// ============================================================================
+const SHEET_URL_SOURCE_OF_TRUTH = "https://script.google.com/macros/s/AKfycbzSi0TcBOOq7GHW7cwC-_y5Q48m3jL4xEYO0DaM3PtnRRmXKpU5BjfJMnrgGqRd0v3a_w/exec";
+const SHEET_URL_AI_EVALUATION   = "https://script.google.com/macros/s/AKfycbzSi0TcBOOq7GHW7cwC-_y5Q48m3jL4xEYO0DaM3PtnRRmXKpU5BjfJMnrgGqRd0v3a_w/exec";
 
-// Array holding all original posts loaded from `posts.json`
 let ALL_POSTS = [];
-// Array holding only the posts that match the user's active filter selections
 let FILTERED_POSTS = [];
-// Pointer keeping track of which post in `FILTERED_POSTS` is currently displayed
 let currentPostIndex = 0;
-// Central database object storing parsed team rosters
-// Structure: { "Team Name": [{ name: "Player Name (#Jersey)", id: "12345" }] }
 let ROSTER_DATABASE = {};
-// Retrieves the tagger's name saved in browser LocalStorage (persists across refreshes)
 let taggerName = localStorage.getItem('taggerName') || '';
-// Global instances for TomSelect searchable dropdown components
 let clubTomSelect = null;
 let playerTomSelect = null;
-// The Google Apps Script Web App Endpoint URL that writes tags into Google Sheets
-const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbypxBeKJHQgPgQHj0PAXGkPG6gTfLlNccibh8f_y5qfi2eCrX1bXxmeCmoZnzaUR1AEZw/exec";
-// A Set storing unique IDs of posts that have already been tagged
 let TAGGED_POST_IDS = new Set();
-
+let taggingMode = localStorage.getItem('taggingMode') || 'source_of_truth'; // 'source_of_truth' or 'evaluate_ai'
 
 // ============================================================================
-// 2. DOM CONTENT LOADED - MAIN INITIALIZATION
-document.addEventListener('DOMContentLoaded', function() {
-  console.log("DOM loaded. Initializing app...");
+// 2. TOP-LEVEL ASYNC & DATA FETCHING FUNCTIONS
+// ============================================================================
 
-  // A. initialize tagger name / modal 
-  initTaggerName();
+async function fetchTaggedPostIds() {
+  const url = SHEET_URL_SOURCE_OF_TRUTH + `?mode=${taggingMode}`;
 
-  // B. initialize TomSelect Dropdowns 
-  const clubElem = document.getElementById('club-dropdown');
-  if (clubElem) {
-    clubTomSelect = new TomSelect('#club-dropdown', {
-      create: false,
-      openOnFocus: true,
-      placeholder: "Search or select MLB club...",
-      sortField: { field: "text", order: "asc" },
-      maxOptions: 50
-    });
-  } else {
-    console.error("Missing #club-dropdown element!");
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === 'success' && Array.isArray(data.taggedPostIds)) {
+      TAGGED_POST_IDS = new Set(data.taggedPostIds.map(id => String(id).trim()));
+      console.log(`Loaded ${TAGGED_POST_IDS.size} tagged post IDs for mode [${taggingMode}]`);
+    }
+  } catch (err) {
+    console.error("Error fetching tagged post IDs from Google Sheets:", err);
   }
+}
 
-  const playerElem = document.getElementById('player-dropdown');
-  if (playerElem) {
-    playerTomSelect = new TomSelect('#player-dropdown', {
-      create: false,
-      openOnFocus: true,
-      placeholder: "Select a Club first...",
-      sortField: { field: "text", order: "asc" },
-      maxOptions: 200
-    });
+async function loadPostsForCurrentMode() {
+  const dataFile = (taggingMode === 'evaluate_ai') ? 'ai_posts.json' : 'posts.json';
+  console.log(`Loading posts from: ${dataFile} (Mode: ${taggingMode})`);
+
+  try {
+    const response = await fetch(dataFile);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    
+    ALL_POSTS = await response.json();
+    console.log(`Successfully loaded ${ALL_POSTS.length} posts from ${dataFile}.`);
+    
+    currentPostIndex = 0;
+    await applyFiltersAndRender();
+  } catch (err) {
+    console.error(`Error loading dataset (${dataFile}):`, err);
   }
+}
 
-  // C. load rosters JSON 
+function loadRosters() {
   fetch('rosters.json')
     .then(res => res.json())
     .then(data => {
@@ -81,14 +72,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             return { 
               name: displayName, 
-              id: idMatch ? idMatch[1] : null  // Sets id to null if non-numeric
+              id: idMatch ? idMatch[1] : null
             };
           });
 
-          // Save parsed team data into ROSTER_DATABASE
           ROSTER_DATABASE[clubName] = teamPlayers;
           
-          // Add team option to Club dropdown
           if (clubTomSelect) {
             clubTomSelect.addOption({ value: clubName, text: clubName });
           }
@@ -99,32 +88,48 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log("Loaded rosters for " + Object.keys(ROSTER_DATABASE).length + " teams.");
     })
     .catch(err => console.error("Error loading rosters.json:", err));
+}
 
-  // D. load posts JSON & Sync google sheet tags 
-  fetch('posts.json')
-    .then(res => res.json())
-    .then(data => {
-      ALL_POSTS = data;
-      console.log("Loaded " + ALL_POSTS.length + " posts from posts.json.");
-      applyFiltersAndRender();
-    })
-    .catch(err => console.error("Error loading posts.json:", err));
+// ============================================================================
+// 3. MAIN INITIALIZATION (DOMContentLoaded)
+// ============================================================================
 
-  if (GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.startsWith('http')) {
-    fetch(GOOGLE_SHEET_URL)
-      .then(res => res.json())
-      .then(resData => {
-        if (resData.status === "success" && Array.isArray(resData.taggedPostIds)) {
-          resData.taggedPostIds.forEach(id => TAGGED_POST_IDS.add(String(id)));
-          console.log("Synced " + TAGGED_POST_IDS.size + " existing tags from Google Sheets.");
-          applyFiltersAndRender();
-        }
-      })
-      .catch(err => console.warn("Google Sheet sync warning:", err));
+document.addEventListener('DOMContentLoaded', async function() {
+  console.log("DOM loaded. Initializing app...");
+
+  // 1. Initialize Modal & Rosters
+  initTaggerName();
+  loadRosters();
+
+  // 2. Initialize TomSelect Dropdowns
+  const clubElem = document.getElementById('club-dropdown');
+  if (clubElem) {
+    clubTomSelect = new TomSelect('#club-dropdown', {
+      create: false,
+      openOnFocus: true,
+      placeholder: "Search or select MLB club...",
+      sortField: { field: "text", order: "asc" },
+      maxOptions: 50
+    });
   }
 
-  // E. Event Listeners: Dropdowns & Filter Controls
-  // When a Club is selected -> populate corresponding player options
+  const playerElem = document.getElementById('player-dropdown');
+  if (playerElem) {
+    playerTomSelect = new TomSelect('#player-dropdown', {
+      create: false,
+      openOnFocus: true,
+      placeholder: "Select a Club first...",
+      sortField: { field: "text", order: "asc" },
+      maxOptions: 200
+    });
+    
+    playerTomSelect.on('change', function(playerName) {
+      const selectedClub = clubTomSelect ? clubTomSelect.getValue() : null;
+      updatePlayerHeadshot(playerName, selectedClub);
+    });
+  }
+
+  // 3. Dropdown Event Listeners
   if (clubTomSelect) {
     clubTomSelect.on('change', function(selectedClub) {
       if (!playerTomSelect) return;
@@ -145,51 +150,31 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // When a Player is selected -> render official MLB headshot
-  if (playerTomSelect) {
-    playerTomSelect.on('change', function(selectedPlayerName) {
-      if (!selectedPlayerName) {
-        hidePlayerHeadshot();
-        return;
-      }
-      
-      const selectedOption = playerTomSelect.options[selectedPlayerName];
-      if (selectedOption && selectedOption.playerId && selectedOption.playerId !== 'null') {
-        const headshotUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:silo:current.png/v1/people/${selectedOption.playerId}/headshot/67/current`;
-        const imgElem = document.getElementById('player-headshot-img');
-        const containerElem = document.getElementById('player-headshot-container');
-        
-        if (imgElem && containerElem) {
-          imgElem.src = headshotUrl;
-          containerElem.style.display = 'block';
-        }
-      } else {
-        hidePlayerHeadshot();
-      }
-    });
-  }
-
-  // Filter Bar listeners
-  const filterPlatform = document.getElementById('filter-platform');
-  const filterPostType = document.getElementById('filter-post-type');
-  const filterStatus = document.getElementById('filter-status');
+  // 4. Filter Bar Listeners
+  const filterPlatform  = document.getElementById('filter-platform');
+  const filterPostType  = document.getElementById('filter-post-type');
+  const filterStatus    = document.getElementById('filter-status');
   const filterStartDate = document.getElementById('filter-start-date');
-  const filterEndDate = document.getElementById('filter-end-date');
-  const filterSort = document.getElementById('filter-sort');
+  const filterEndDate   = document.getElementById('filter-end-date');
+  const filterSort      = document.getElementById('filter-sort');
 
-  if (filterPlatform) filterPlatform.addEventListener('change', applyFiltersAndRender);
-  if (filterPostType) filterPostType.addEventListener('change', applyFiltersAndRender);
-  if (filterStatus) filterStatus.addEventListener('change', applyFiltersAndRender);
+  if (filterPlatform)  filterPlatform.addEventListener('change', applyFiltersAndRender);
+  if (filterPostType)  filterPostType.addEventListener('change', applyFiltersAndRender);
+  if (filterStatus)    filterStatus.addEventListener('change', applyFiltersAndRender);
   if (filterStartDate) filterStartDate.addEventListener('change', applyFiltersAndRender);
-  if (filterEndDate) filterEndDate.addEventListener('change', applyFiltersAndRender);
-  if (filterSort) filterSort.addEventListener('change', applyFiltersAndRender);
+  if (filterEndDate)   filterEndDate.addEventListener('change', applyFiltersAndRender);
+  if (filterSort)      filterSort.addEventListener('change', applyFiltersAndRender);
 
   setupFormHandlers();
+
+  // 5. Load Posts & Tagged Sheet IDs for Active Mode
+  await loadPostsForCurrentMode();
 });
 
-
 // ============================================================================
-// 3. TAGGER NAME MODAL LOGIC
+// 4. TAGGER NAME MODAL LOGIC
+// ============================================================================
+
 function initTaggerName() {
   const modal = document.getElementById('name-modal');
   const taggerInput = document.getElementById('tagger-name-input');
@@ -199,7 +184,10 @@ function initTaggerName() {
 
   function updateTaggerUI() {
     if (taggerName) {
-      if (nameDisplay) nameDisplay.textContent = taggerName;
+      if (nameDisplay) {
+        const modeLabel = taggingMode === 'evaluate_ai' ? ' [AI Eval Mode]' : ' [Source of Truth]';
+        nameDisplay.textContent = taggerName + modeLabel;
+      }
       if (modal) modal.style.display = 'none';
     } else {
       if (nameDisplay) nameDisplay.textContent = 'Not Set';
@@ -207,10 +195,13 @@ function initTaggerName() {
     }
   }
 
+  const activeRadio = document.querySelector(`input[name="tagging-mode"][value="${taggingMode}"]`);
+  if (activeRadio) activeRadio.checked = true;
+
   updateTaggerUI();
 
   if (saveBtn) {
-    saveBtn.addEventListener('click', function(e) {
+    saveBtn.addEventListener('click', async function(e) {
       e.preventDefault();
       
       const inputVal = taggerInput ? taggerInput.value.trim() : '';
@@ -219,11 +210,18 @@ function initTaggerName() {
         return;
       }
 
+      const selectedModeRadio = document.querySelector('input[name="tagging-mode"]:checked');
+      const selectedMode = selectedModeRadio ? selectedModeRadio.value : 'source_of_truth';
+
       taggerName = inputVal;
+      taggingMode = selectedMode;
+
       localStorage.setItem('taggerName', taggerName);
+      localStorage.setItem('taggingMode', taggingMode);
 
       updateTaggerUI();
-      applyFiltersAndRender();
+
+      await loadPostsForCurrentMode();
     });
   }
 
@@ -232,29 +230,33 @@ function initTaggerName() {
       e.preventDefault();
       if (modal) {
         if (taggerInput) taggerInput.value = taggerName;
+        const radio = document.querySelector(`input[name="tagging-mode"][value="${taggingMode}"]`);
+        if (radio) radio.checked = true;
         modal.style.display = 'flex';
       }
     });
   }
 }
 
-
 // ============================================================================
-// 4. FILTERING LOGIC
-function applyFiltersAndRender() {
+// 5. FILTERING & RENDER LOGIC
+// ============================================================================
+
+async function applyFiltersAndRender() {
   const selectedPlatform = document.getElementById('filter-platform')?.value || 'all';
   const selectedPostType = document.getElementById('filter-post-type')?.value || 'all';
-  const selectedStatus = document.getElementById('filter-status')?.value || 'untagged';
-  const startDate = document.getElementById('filter-start-date')?.value || '';
-  const endDate = document.getElementById('filter-end-date')?.value || '';
-  const selectedSort = document.getElementById('filter-sort')?.value || 'asc';
+  const selectedStatus   = document.getElementById('filter-status')?.value || 'untagged';
+  const startDate        = document.getElementById('filter-start-date')?.value || '';
+  const endDate          = document.getElementById('filter-end-date')?.value || '';
+  const selectedSort     = document.getElementById('filter-sort')?.value || 'asc';
 
-  // 1. FILTER POSTS
+  await fetchTaggedPostIds();
+
   FILTERED_POSTS = ALL_POSTS.filter(post => {
     if (selectedPlatform !== 'all' && post.channel.toLowerCase() !== selectedPlatform.toLowerCase()) return false;
     if (selectedPostType !== 'all' && post.post_type.toLowerCase() !== selectedPostType.toLowerCase()) return false;
 
-    const isTagged = TAGGED_POST_IDS.has(String(post.post_id));
+    const isTagged = TAGGED_POST_IDS.has(String(post.post_id).trim());
     if (selectedStatus === 'untagged' && isTagged) return false;
     if (selectedStatus === 'tagged' && !isTagged) return false;
 
@@ -266,7 +268,6 @@ function applyFiltersAndRender() {
     return true;
   });
 
-  // 2. SORT POSTS
   if (selectedSort === 'asc') {
     FILTERED_POSTS.sort((a, b) => new Date(a.post_date_pt) - new Date(b.post_date_pt));
   } else if (selectedSort === 'desc') {
@@ -278,7 +279,6 @@ function applyFiltersAndRender() {
     }
   }
 
-  // 3. RESET INDEX & RENDER
   if (currentPostIndex >= FILTERED_POSTS.length) {
     currentPostIndex = Math.max(0, FILTERED_POSTS.length - 1);
   }
@@ -286,10 +286,8 @@ function applyFiltersAndRender() {
   renderCurrentPost();
 }
 
-
-// ============================================================================
-// 5. RENDER CURRENT POST IN UI
 function renderCurrentPost() {
+  const currentPost = FILTERED_POSTS[currentPostIndex];
   const embedContainer = document.getElementById('media-embed-container');
   const captionElem = document.getElementById('post-caption-text');
   const postIdElem = document.getElementById('post-id-display');
@@ -304,8 +302,6 @@ function renderCurrentPost() {
     if (counterElem) counterElem.textContent = "0 of 0 in Queue";
     return;
   }
-
-  const currentPost = FILTERED_POSTS[currentPostIndex];
 
   if (postIdElem) postIdElem.textContent = `#${currentPost.post_id}`;
   if (captionElem) captionElem.textContent = currentPost.post_content || "No caption available.";
@@ -354,11 +350,84 @@ function renderCurrentPost() {
       </div>
     `;
   }
+  
+  if (taggingMode === 'evaluate_ai') {
+    resetForm();
+    prefillAiData(currentPost);
+  } else {
+    resetForm();
+  }
+
+  const aiBox = document.getElementById('ai-description-box');
+  const aiTextContent = document.getElementById('ai-text-description-content');
+  const aiDescription = currentPost.text_description || currentPost.ai_text_description;
+
+  if (taggingMode === 'evaluate_ai' && aiDescription) {
+    if (aiTextContent) aiTextContent.textContent = aiDescription;
+    if (aiBox) aiBox.style.display = 'block';
+  } else {
+    if (aiBox) aiBox.style.display = 'none';
+  }
 }
 
+function prefillAiData(post) {
+  if (!post) return;
+
+  const clubVal = post.focal_club || post.ai_club;
+  if (clubTomSelect && clubVal && clubVal !== "None") {
+    clubTomSelect.setValue(clubVal);
+    
+    const rawPlayerVal = post.focal_player || post.ai_player;
+    if (rawPlayerVal && rawPlayerVal !== "None") {
+      setTimeout(() => {
+        if (playerTomSelect) {
+          playerTomSelect.enable();
+
+          let targetPlayerName = rawPlayerVal;
+          if (ROSTER_DATABASE && clubVal && ROSTER_DATABASE[clubVal]) {
+            const matchedPlayer = ROSTER_DATABASE[clubVal].find(p => 
+              p.name.toLowerCase().trim() === rawPlayerVal.toLowerCase().trim() ||
+              p.name.toLowerCase().startsWith(rawPlayerVal.toLowerCase().trim())
+            );
+            
+            if (matchedPlayer) {
+              targetPlayerName = matchedPlayer.name;
+            }
+          }
+
+          if (!playerTomSelect.options[targetPlayerName]) {
+            playerTomSelect.addOption({ value: targetPlayerName, text: targetPlayerName });
+          }
+
+          playerTomSelect.setValue(targetPlayerName);
+          updatePlayerHeadshot(targetPlayerName, clubVal);
+        }
+      }, 300);
+    }
+  }
+
+  const rawObj = post.objective ?? post.ai_objective;
+  let objectiveVal = "";
+  if (rawObj === "1" || rawObj === 1) objectiveVal = "Reach new audience";
+  if (rawObj === "0" || rawObj === 0) objectiveVal = "Target current audience";
+
+  if (objectiveVal) {
+    const radio = document.querySelector(`input[name="objective"][value="${objectiveVal}"]`);
+    if (radio) radio.checked = true;
+  }
+
+  const rawScore = post.score_graphic ?? post.ai_score_graphic;
+  const isScoreGraphic = (rawScore === "1" || rawScore === 1 || rawScore === true);
+  const scoreCheckbox = document.getElementById('score-graphic-checkbox');
+  if (scoreCheckbox) {
+    scoreCheckbox.checked = isScoreGraphic;
+  }
+}
 
 // ============================================================================
 // 6. FORM HANDLERS (SUBMIT & SKIP)
+// ============================================================================
+
 function setupFormHandlers() {
   const submitBtn = document.getElementById('submit-btn');
   if (submitBtn) {
@@ -368,11 +437,11 @@ function setupFormHandlers() {
       const selectedObjective = document.querySelector('input[name="objective"]:checked');
       const currentPost = FILTERED_POSTS[currentPostIndex];
 
-            // Assemble tag payload object
       const tagData = {
         taggedAt: new Date().toLocaleString(),
         taggerName: taggerName,
-        postId: currentPost.post_id,
+        taggingMode: taggingMode,
+        postId: String(currentPost.post_id).trim(),
         pageAccount: currentPost.page_account || "",
         channel: currentPost.channel || "",
         postType: currentPost.post_type || "",
@@ -380,8 +449,9 @@ function setupFormHandlers() {
         club: clubTomSelect ? clubTomSelect.getValue() : null,
         player: playerTomSelect ? playerTomSelect.getValue() : null,
         event: document.getElementById('event-input')?.value.trim() || null,
-        freeform: document.getElementById('freeform-input')?.value.trim() || null, // <--- ADDED THIS LINE
         objective: selectedObjective ? selectedObjective.value : null,
+        scoreGraphic: document.getElementById('score-graphic-checkbox')?.checked || false,
+        freeform: document.getElementById('freeform-input')?.value.trim() || null,
         postUrl: currentPost.post_url || "",
         postContent: currentPost.post_content || ""
       };
@@ -389,23 +459,24 @@ function setupFormHandlers() {
       submitBtn.disabled = true;
       submitBtn.textContent = "Saving to Google Sheet...";
 
-      TAGGED_POST_IDS.add(String(currentPost.post_id));
-
-      fetch(GOOGLE_SHEET_URL, {
+      fetch(SHEET_URL_SOURCE_OF_TRUTH, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(tagData)
       })
-      .then(() => console.log("Tag saved to Google Sheet:", tagData))
-      .catch(err => console.warn("Background fetch warning:", err))
+      .then(() => {
+        console.log(`Saved tag [${currentPost.post_id}] under mode [${taggingMode}]`);
+        TAGGED_POST_IDS.add(String(currentPost.post_id).trim());
+      })
+      .catch(err => console.warn("Save warning:", err))
       .finally(() => {
         submitBtn.disabled = false;
         submitBtn.textContent = "Save Tag & Next ➔";
         resetForm();
 
         const selectedStatus = document.getElementById('filter-status')?.value;
-        if (selectedStatus === 'untagged') {
+        if (selectedStatus === 'untagged' || selectedStatus === 'tagged') {
           applyFiltersAndRender();
         } else {
           currentPostIndex++;
@@ -436,26 +507,76 @@ function setupFormHandlers() {
   }
 }
 
-
 // ============================================================================
 // 7. HELPER FUNCTIONS
+// ============================================================================
+
 function resetForm() {
-  if (clubTomSelect) clubTomSelect.clear();
+  if (clubTomSelect) clubTomSelect.clear(true);
+
   if (playerTomSelect) {
-    playerTomSelect.clear();
+    playerTomSelect.clear(true);
     playerTomSelect.clearOptions();
     playerTomSelect.disable();
   }
 
-  hidePlayerHeadshot();
+  const headshotContainer = document.getElementById('player-headshot-container');
+  const headshotImg = document.getElementById('player-headshot-img');
+
+  if (headshotImg) {
+    headshotImg.src = '';
+    headshotImg.style.display = 'none';
+  }
+
+  if (headshotContainer) {
+    headshotContainer.style.display = 'none';
+  }
 
   const eventInput = document.getElementById('event-input');
   if (eventInput) eventInput.value = '';
 
-  // Clear Freeform field
-  const freeformInput = document.getElementById('freeform-input'); // <--- ADDED THIS
-  if (freeformInput) freeformInput.value = '';                     // <--- ADDED THIS
+  const freeformInput = document.getElementById('freeform-input');
+  if (freeformInput) freeformInput.value = '';
+
+  const scoreCheckbox = document.getElementById('score-graphic-checkbox');
+  if (scoreCheckbox) scoreCheckbox.checked = false;
 
   const checkedRadio = document.querySelector('input[name="objective"]:checked');
   if (checkedRadio) checkedRadio.checked = false;
+}
+
+function hidePlayerHeadshot() {
+  const headshotImg = document.getElementById('player-headshot') || document.getElementById('headshot-img');
+  if (headshotImg) {
+    headshotImg.style.display = 'none';
+    headshotImg.src = '';
+  }
+}
+
+function updatePlayerHeadshot(playerName, clubName) {
+  const headshotContainer = document.getElementById('player-headshot-container');
+  const headshotImg = document.getElementById('player-headshot-img');
+
+  if (!headshotImg) return;
+
+  let playerId = null;
+
+  if (ROSTER_DATABASE && clubName && ROSTER_DATABASE[clubName] && playerName) {
+    const playerObj = ROSTER_DATABASE[clubName].find(p => 
+      p.name.toLowerCase().trim() === playerName.toLowerCase().trim() ||
+      p.name.toLowerCase().startsWith(playerName.toLowerCase().trim())
+    );
+    if (playerObj) playerId = playerObj.id;
+  }
+
+  if (playerId) {
+    const photoUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:silo:current.png/v1/people/${playerId}/headshot/67/current`;
+    headshotImg.src = photoUrl;
+    headshotImg.style.display = 'block';
+    if (headshotContainer) headshotContainer.style.display = 'block';
+  } else {
+    headshotImg.src = '';
+    headshotImg.style.display = 'none';
+    if (headshotContainer) headshotContainer.style.display = 'none';
+  }
 }

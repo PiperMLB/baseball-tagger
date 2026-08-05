@@ -86,11 +86,19 @@
         <!-- Injected dynamically by app.js -->
       </div>
 
-      <!-- Post Caption Display Box: shows text caption of the active social post -->
+      <!-- Post Caption Display Box: shows text caption of the active social post -->  
       <div class="caption-container">
         <h4>Post Caption</h4>
         <p id="post-caption-text" class="caption-text">
           Loading post caption...
+        </p>
+      </div>
+
+      <!-- AI Generated Description (Styled Identically) -->
+      <div id="ai-description-box" class="caption-container" style="display: none; margin-top: 15px;">
+        <h4>AI Description</h4>
+        <p id="ai-text-description-content" class="caption-text">
+          Loading AI description...
         </p>
       </div>
 
@@ -176,6 +184,13 @@
               style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"
             >
           </div>
+          <!-- Score Graphic Checkbox -->
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold;">
+            <input type="checkbox" id="score-graphic-checkbox" style="width: 18px; height: 18px; cursor: pointer;">
+            Is a Score Graphic?
+          </label>
+        </div>
         </div>
 
         <hr>
@@ -194,16 +209,52 @@
 
   </div>
 
-  <!-- THE USERS NAME -->
-  <!-- Pop-up overlay prompting user for identity before starting tagging session -->
-  <div id="name-modal" class="modal-overlay">
-    <div class="modal-content">
-      <h3>Welcome to Baseball Tagger ⚾</h3>
-      <p>Please enter your First and Last Name so we can track who tags each post:</p>
-      <input type="text" id="tagger-name-input" class="text-input" placeholder="e.g. Piper Dubow" autofocus>
-      <button id="save-name-btn" class="btn btn-primary" style="margin-top: 15px; width: 100%;">Start Tagging</button>
+  <!-- Name / Mode Selection Modal -->
+<div id="name-modal" class="modal-overlay">
+  <div class="modal-content">
+    <h2>Welcome to Baseball Tagger</h2>
+    <p>Please enter your name and select your tagging purpose to begin:</p>
+    
+    <!-- 1. Tagger Name Input -->
+    <div class="form-group" style="margin-bottom: 15px;">
+      <label for="tagger-name-input" style="font-weight: bold; display: block; margin-bottom: 5px;">
+        Your Name:
+      </label>
+      <input 
+        type="text" 
+        id="tagger-name-input" 
+        placeholder="e.g. Alex Smith" 
+        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"
+      >
     </div>
+
+    <!-- 2. Tagging Purpose Selection (New Mode Radio Buttons) -->
+    <div class="form-group" style="margin-top: 15px; margin-bottom: 20px;">
+      <label style="font-weight: bold; display: block; margin-bottom: 8px;">
+        Select Your Tagging Purpose:
+      </label>
+      
+      <div style="margin-bottom: 8px;">
+        <input type="radio" id="mode-source" name="tagging-mode" value="source_of_truth" checked>
+        <label for="mode-source" style="font-weight: normal; cursor: pointer;">
+          <strong>1) Create Source of Truth Tag</strong> (Standard manual tagging)
+        </label>
+      </div>
+
+      <div>
+        <input type="radio" id="mode-ai" name="tagging-mode" value="evaluate_ai">
+        <label for="mode-ai" style="font-weight: normal; cursor: pointer;">
+          <strong>2) Evaluate AI Tagging</strong> (Review & correct pre-tagged AI posts)
+        </label>
+      </div>
+    </div>
+
+    <!-- 3. Save / Start Button -->
+    <button id="save-name-btn" class="btn btn-primary" style="width: 100%;">
+      Start Tagging ➔
+    </button>
   </div>
+</div>
 
   <!-- ==================== EXTERNAL EMBED SCRIPTS ==================== -->
   <!-- Native SDK scripts that allow social platforms to render embedded widgets in browser -->
