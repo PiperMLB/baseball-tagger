@@ -47,7 +47,7 @@ async function fetchTaggedPostIds() {
     const data = await response.json();
 
     if (data.status === 'success' && Array.isArray(data.taggedPostIds)) {
-      // 📍 Normalize every ID to a trimmed string
+      //Normalize every ID to a trimmed string
       TAGGED_POST_IDS = new Set(
         data.taggedPostIds
           .filter(id => id !== null && id !== undefined && id !== '')
