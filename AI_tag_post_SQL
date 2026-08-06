@@ -1,0 +1,10 @@
+SELECT distinct
+  tag.*,
+  post_date_pt,
+  channel,
+  post_type,
+  post_url,
+  post_content
+FROM `mlb-decur-prod-9444.marketing.social_tagging` tag
+join `mlb-decur-prod-9444.social_media.social_post_metrics_combined` spmc
+  on tag.post_id = spmc.post_id
